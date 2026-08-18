@@ -113,10 +113,6 @@ bash scripts/build.sh
 
 用 DSH 插件工具链安装/注入生成的包，例如 `dev_inject_plugin`。
 
-### 许可证
-
-[BSD-3-Clause](./LICENSE)
-
 ---
 
 ![Good](./assets/good.png)
