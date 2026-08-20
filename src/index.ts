@@ -20,7 +20,16 @@ import type { CommandInvocation, CommandResult } from '@deepseek-ai/dsh-commands
 import type {} from '@deepseek-ai/dsh-commands'
 
 export const name = 'dsh-gamemode'
-export const inject = ['commands', 'agentPresets']
+/**
+ * commands is required (the whole point). agentPresets is NOT declared in
+ * inject: cordis 4.x resolves inject entries as service names (array form or
+ * name→config map), so the {required, optional} object form would be looked
+ * up as literal services "required"/"optional" and stay pending forever.
+ * Optional deps are instead read via ctx.get() at call time (see the
+ * handler), so rosterless/headless deployments still load the plugin and
+ * report a clear "no preset system" error on use.
+ */
+export const inject = ['commands']
 
 type GameMode = 'creative' | 'survival'
 
@@ -37,8 +46,8 @@ function isBlankSession(invocation: CommandInvocation): boolean {
   return !invocation.agent.session.events.some((event) => event.type === 'turn/start')
 }
 
-async function findPreset(ctx: Context, mode: GameMode): Promise<AgentPreset | undefined> {
-  const presets = await ctx.agentPresets.list()
+async function findPreset(presetsService: { list(): Promise<AgentPreset[]> }, mode: GameMode): Promise<AgentPreset | undefined> {
+  const presets = await presetsService.list()
   if (mode === 'creative') {
     return presets.find((preset) => CREATIVE_PRESET_IDS.has(preset.id))
       ?? presets.find((preset) => preset.name !== undefined && /创造|creative/i.test(preset.name))
@@ -67,6 +76,13 @@ function usageText(): string {
 function makeHandler(ctx: Context) {
   return async function handleGamemod(invocation: CommandInvocation): Promise<CommandResult> {
     const { agent, rawInput } = invocation
+    const presetsService = ctx.get('agentPresets')
+    if (presetsService === undefined) {
+      return {
+        kind: 'error',
+        text: '当前部署没有 Agent Preset 系统（agentPresets 服务未挂载），/gamemode 不可用。',
+      }
+    }
     const parsed = parseGameMode(rawInput)
     if (!parsed.recognized) {
       return {
@@ -76,8 +92,8 @@ function makeHandler(ctx: Context) {
     }
 
     if (parsed.mode === undefined) {
-      const current = ctx.agentPresets.composedPreset(agent.ctx)
-      const presets = await ctx.agentPresets.list()
+      const current = presetsService.composedPreset(agent.ctx)
+      const presets = await presetsService.list()
       const currentPreset = presets.find((preset) => preset.id === current)
       const label = currentPreset === undefined
         ? (current ?? '（未挂载 Agent Preset）')
@@ -88,7 +104,7 @@ function makeHandler(ctx: Context) {
       }
     }
 
-    const target = await findPreset(ctx, parsed.mode)
+    const target = await findPreset(presetsService, parsed.mode)
     if (target === undefined || target.broken !== undefined) {
       const reason = target?.broken === undefined ? '内置预设不存在' : target.broken
       return {
@@ -97,7 +113,7 @@ function makeHandler(ctx: Context) {
       }
     }
 
-    const current = ctx.agentPresets.composedPreset(agent.ctx)
+    const current = presetsService.composedPreset(agent.ctx)
     if (current === target.id) {
       return {
         kind: 'success',
@@ -113,7 +129,7 @@ function makeHandler(ctx: Context) {
     }
 
     try {
-      const switched = await ctx.agentPresets.recompose(agent.ctx, target.id)
+      const switched = await presetsService.recompose(agent.ctx, target.id)
       agent.session.append('agent-preset/selected', { agentPreset: switched.id })
       return {
         kind: 'success',

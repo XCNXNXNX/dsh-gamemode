@@ -15,5 +15,14 @@
  */
 import type { Context } from '@deepseek-ai/cordis';
 export declare const name = "dsh-gamemode";
+/**
+ * commands is required (the whole point). agentPresets is NOT declared in
+ * inject: cordis 4.x resolves inject entries as service names (array form or
+ * name→config map), so the {required, optional} object form would be looked
+ * up as literal services "required"/"optional" and stay pending forever.
+ * Optional deps are instead read via ctx.get() at call time (see the
+ * handler), so rosterless/headless deployments still load the plugin and
+ * report a clear "no preset system" error on use.
+ */
 export declare const inject: string[];
 export declare function apply(ctx: Context): void;

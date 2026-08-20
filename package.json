@@ -1,6 +1,6 @@
 {
   "name": "dsh-gamemode",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "DSH 插件：/gamemode 1 = 一键切换到内置创造模式（cordis）预设。DSH plugin: /gamemode 1 = switch to the built-in Creative Mode (cordis) agent preset.",
   "type": "module",
   "main": "./lib/index.js",
@@ -48,11 +48,14 @@
     }
   },
   "devDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/dsh-agent-presets": "^0.1.0-rc.8",
+    "@deepseek-ai/dsh-commands": "^0.1.0-rc.8",
     "@types/node": "^24.13.3",
     "typescript": "^5.9.0"
   },
   "scripts": {
-    "build": "bash scripts/build.sh",
+    "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   }
 }
